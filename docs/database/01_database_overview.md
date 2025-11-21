@@ -77,6 +77,4 @@ reviews/
 
 ## Next Steps
 
-- [Table Details](tables) - Detailed table specifications
-- [Reviews API](reviews) - Work with reviews
-- [Review Pages API](review-pages) - Manage pages
+- [Table Details](02_tables.md) - Detailed table specifications
