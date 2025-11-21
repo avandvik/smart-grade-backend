@@ -4,3 +4,7 @@
 # Supabase
 .branches
 .temp
+
+# Node
+node_modules
+package-lock.json
