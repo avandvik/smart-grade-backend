@@ -11,6 +11,10 @@ const supabase = createClient(
 );
 
 async function createReview(title, pdfFile) {
+  // Get current user ID
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("User not authenticated");
+
   // 1. Create review record
   const { data: review, error } = await supabase
     .from("reviews")
@@ -22,9 +26,12 @@ async function createReview(title, pdfFile) {
 
   // 2. Upload PDF if provided
   if (pdfFile) {
+    // Use the original filename from the uploaded file
+    const fileName = pdfFile.name || 'document.pdf';
+
     const { data: upload } = await supabase.storage
       .from("reviews")
-      .upload(`${review.id}/document.pdf`, pdfFile);
+      .upload(`${user.id}/${review.id}/${fileName}`, pdfFile);
 
     // 3. Update review with PDF path
     await supabase
