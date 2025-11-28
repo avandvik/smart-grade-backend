@@ -75,6 +75,24 @@ reviews/
 │       └── ...
 ```
 
+## Deleting Files
+
+**Always delete via database records, never directly from storage.**
+
+Database triggers automatically clean up storage files when records are deleted:
+
+| Delete this... | Storage cleanup |
+|----------------|-----------------|
+| `reviews` row | PDF file deleted automatically |
+| `review_pages` row | Page image deleted automatically |
+
+The cascade chain handles nested deletions:
+```
+DELETE review → triggers PDF cleanup → cascades to pages → triggers image cleanup
+```
+
+⚠️ **Do not delete files directly from the storage bucket.** This leaves orphan records in the database pointing to non-existent files.
+
 ## Next Steps
 
 - [Table Details](02_tables.md) - Detailed table specifications
