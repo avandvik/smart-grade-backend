@@ -1,0 +1,80 @@
+import "@supabase/functions-js/edge-runtime.d.ts";
+import { authenticateUser } from "@shared/services/auth.service.ts";
+import {
+	parseForestPlot,
+	parseRiskOfBias,
+} from "@shared/services/llm.service.ts";
+import type { ParseReviewRequest } from "@shared/types/index.ts";
+import { handleCors } from "@shared/utils/cors.ts";
+import { errorResponse, successResponse } from "@shared/utils/response.ts";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+async function downloadPageImage(
+	supabase: SupabaseClient,
+	reviewId: string,
+	pageNumber: number,
+): Promise<string> {
+	const { data: page, error: pageError } = await supabase
+		.from("review_pages")
+		.select("image_path")
+		.eq("review_id", reviewId)
+		.eq("page_number", pageNumber)
+		.single();
+
+	if (pageError || !page) {
+		throw new Error(`Page ${pageNumber} not found`);
+	}
+
+	const { data: blob, error: downloadError } = await supabase.storage
+		.from("reviews")
+		.download(page.image_path);
+
+	if (downloadError || !blob) {
+		throw new Error(`Failed to download page ${pageNumber}`);
+	}
+
+	const arrayBuffer = await blob.arrayBuffer();
+	const bytes = new Uint8Array(arrayBuffer);
+	let binary = "";
+	for (let i = 0; i < bytes.length; i++) {
+		binary += String.fromCharCode(bytes[i]);
+	}
+	return btoa(binary);
+}
+
+Deno.serve(async (req: Request) => {
+	const corsResponse = handleCors(req);
+	if (corsResponse) return corsResponse;
+
+	try {
+		const { supabase } = await authenticateUser(
+			req.headers.get("Authorization"),
+			req.headers.get("apiKey"),
+		);
+
+		const body = (await req.json()) as ParseReviewRequest;
+		const { review_id, forest_plot_page, rob_graph_page } = body;
+
+		if (!review_id || !forest_plot_page || !rob_graph_page) {
+			return errorResponse("Missing required fields", 400);
+		}
+
+		const [forestPlotImage, robImage] = await Promise.all([
+			downloadPageImage(supabase, review_id, forest_plot_page),
+			downloadPageImage(supabase, review_id, rob_graph_page),
+		]);
+
+		const forestPlotData = await parseForestPlot(forestPlotImage);
+		const studyTitles = forestPlotData.studies.map((s) => s.title);
+		const robData = await parseRiskOfBias(robImage, studyTitles);
+
+		return successResponse({
+			forest_plot: forestPlotData,
+			risk_of_bias: robData,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error("Error:", message);
+		return errorResponse(message, 500);
+	}
+});

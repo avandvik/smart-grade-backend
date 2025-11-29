@@ -1,0 +1,7 @@
+{
+    "tasks": {
+        "seed-storage": "deno run --allow-net --allow-read --allow-env --env=supabase/functions/tests/.env supabase/functions/tests/seed-storage.ts",
+        "serve": "supabase functions serve --env-file supabase/functions/.env.local",
+        "test:local": "deno test --allow-net --allow-env --env=supabase/functions/tests/.env supabase/functions/tests/parse-review-local-test.ts"
+    }
+}

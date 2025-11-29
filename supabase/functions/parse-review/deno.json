@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "std/": "https://deno.land/std@0.168.0/",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.49.1",
+    "@supabase/functions-js": "jsr:@supabase/functions-js@2.5.0",
+    "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.32.0",
+    "@shared/": "./_shared/"
+  },
+  "nodeModulesDir": "auto"
+}

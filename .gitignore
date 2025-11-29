@@ -12,3 +12,7 @@ package-lock.json
 # Vitepress
 docs/.vitepress/cache
 docs/.vitepress/dist
+
+# Environment variables
+.env
+.env.local

@@ -1,20 +1,26 @@
 -- Create reviews storage bucket
 insert into storage.buckets (
-  id, 
-  name, 
-  public, 
-  file_size_limit, 
+  id,
+  name,
+  public,
+  file_size_limit,
   allowed_mime_types
 )
 values (
   'reviews',
-  'reviews', 
+  'reviews',
   false,
   52428800, -- 50MB
   array['application/pdf', 'image/png', 'image/jpeg']::text[]
-);
+)
+on conflict (id) do nothing;
 
--- Storage policies
+-- Storage policies (drop if exists, then create)
+drop policy if exists "Users can upload to own folder" on "storage"."objects";
+drop policy if exists "Users can view own files" on "storage"."objects";
+drop policy if exists "Users can update own files" on "storage"."objects";
+drop policy if exists "Users can delete own files" on "storage"."objects";
+
 create policy "Users can upload to own folder"
   on "storage"."objects"
   as permissive
