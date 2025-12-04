@@ -43,31 +43,34 @@ await supabase
 	.update({ pdf_path: pdfPath })
 	.eq("id", REVIEW_ID);
 
-// 3. Upload pages and create records
-console.log("Uploading pages...");
-for (let i = 1; i <= 18; i++) {
-	const fileName = `page-${i}.png`;
-	const storagePath = `${USER_ID}/${REVIEW_ID}/pages/page_${i}.png`;
+// 3. Upload page sections and create records
+console.log("Uploading page sections...");
+for (let page = 1; page <= 18; page++) {
+	for (let section = 1; section <= 3; section++) {
+		const fileName = `page-${page}-${section}.png`;
+		const storagePath = `${USER_ID}/${REVIEW_ID}/pages/page-${page}-${section}.png`;
 
-	const file = await Deno.readFile(`${EXAMPLE_DIR}/${fileName}`);
-	const { error: uploadError } = await supabase.storage
-		.from("reviews")
-		.upload(storagePath, file, { contentType: "image/png" });
+		const file = await Deno.readFile(`${EXAMPLE_DIR}/pages/${fileName}`);
+		const { error: uploadError } = await supabase.storage
+			.from("reviews")
+			.upload(storagePath, file, { contentType: "image/png" });
 
-	if (uploadError) {
-		console.error(`Upload failed: ${fileName}`, uploadError.message);
-		continue;
+		if (uploadError) {
+			console.error(`Upload failed: ${fileName}`, uploadError.message);
+			continue;
+		}
+
+		const { error: insertError } = await supabase.from("review_pages").insert({
+			review_id: REVIEW_ID,
+			page_number: page,
+			section_number: section,
+			image_path: storagePath,
+		});
+
+		if (insertError)
+			console.error(`Insert failed: page ${page} section ${section}`, insertError.message);
+		else console.log(`Done: page ${page} section ${section}`);
 	}
-
-	const { error: insertError } = await supabase.from("review_pages").insert({
-		review_id: REVIEW_ID,
-		page_number: i,
-		image_path: storagePath,
-	});
-
-	if (insertError)
-		console.error(`Insert failed: page ${i}`, insertError.message);
-	else console.log(`Done: page ${i}`);
 }
 
 console.log("Seed complete!");

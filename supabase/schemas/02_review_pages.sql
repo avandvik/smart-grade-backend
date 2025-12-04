@@ -7,12 +7,13 @@ create table public.review_pages (
   id uuid not null default gen_random_uuid(),
   review_id uuid not null references public.reviews(id) on delete cascade,
   page_number integer not null check (page_number > 0),
+  section_number integer not null default 1 check (section_number >= 1 and section_number <= 3),
   image_path text not null check (length(trim(image_path)) > 0),
   is_rob_graph boolean not null default false,
   is_forest_plot boolean not null default false,
   created_at timestamptz not null default now(),
   primary key (id),
-  unique(review_id, page_number)
+  unique(review_id, page_number, section_number)
 );
 
 -- Indexes

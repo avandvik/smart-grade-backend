@@ -130,18 +130,31 @@ const FOREST_PLOT_PROMPT = `Extract from this forest plot:
 Extract values precisely as shown.`;
 
 function buildRobPrompt(studyTitles: string[]): string {
-	return `Extract risk of bias for these studies from the graph:
+	return `Extract risk of bias from this graph for the following studies.
+
+IMPORTANT: Use these EXACT study titles in your response - do not modify them or extract different titles from the image:
 ${studyTitles.map((t) => `- ${t}`).join("\n")}
 
-For each domain (selection_bias_1, selection_bias_2, performance_bias, detection_bias, attrition_bias, reporting_bias, other_bias):
+Match each row in the graph to the corresponding study title above based on author name and year. Use the exact title string provided.
+
+For each bias domain (selection_bias_1, selection_bias_2, performance_bias, detection_bias, attrition_bias, reporting_bias, other_bias):
 - Green = "low", Yellow = "uncertain", Red = "high"`;
 }
 
 async function callClaude<T>(
-	imageBase64: string,
+	imagesBase64: string[],
 	prompt: string,
 	tool: typeof forestPlotTool | typeof riskOfBiasTool,
 ): Promise<T> {
+	const imageBlocks = imagesBase64.map((data) => ({
+		type: "image" as const,
+		source: {
+			type: "base64" as const,
+			media_type: "image/png" as const,
+			data,
+		},
+	}));
+
 	const message = await anthropic.messages.create({
 		model: "claude-sonnet-4-5",
 		max_tokens: 4096,
@@ -150,17 +163,7 @@ async function callClaude<T>(
 		messages: [
 			{
 				role: "user",
-				content: [
-					{
-						type: "image",
-						source: {
-							type: "base64",
-							media_type: "image/png",
-							data: imageBase64,
-						},
-					},
-					{ type: "text", text: prompt },
-				],
+				content: [...imageBlocks, { type: "text", text: prompt }],
 			},
 		],
 	});
@@ -173,20 +176,22 @@ async function callClaude<T>(
 	return toolUse.input as T;
 }
 
-export function parseForestPlot(imageBase64: string): Promise<ForestPlotData> {
+export function parseForestPlot(
+	imagesBase64: string[],
+): Promise<ForestPlotData> {
 	return callClaude<ForestPlotData>(
-		imageBase64,
+		imagesBase64,
 		FOREST_PLOT_PROMPT,
 		forestPlotTool,
 	);
 }
 
 export function parseRiskOfBias(
-	imageBase64: string,
+	imagesBase64: string[],
 	studyTitles: string[],
 ): Promise<BiasStudiesData> {
 	return callClaude<BiasStudiesData>(
-		imageBase64,
+		imagesBase64,
 		buildRobPrompt(studyTitles),
 		riskOfBiasTool,
 	);

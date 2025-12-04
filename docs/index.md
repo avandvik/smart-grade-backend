@@ -1,28 +1,55 @@
 # SmartGRADE Backend
 
-Supabase-powered backend for managing systematic reviews.
+Systematic Review Analysis API with AI-powered data extraction from forest plots and risk of bias graphs.
 
-## Configuration
+## Features
+
+- **Review Management**: Upload and organize systematic review PDFs
+- **Page Extraction**: Convert PDF pages to images for analysis
+- **AI-Powered Parsing**: Extract structured data from forest plots and risk of bias graphs
+- **Built on Supabase**: Authentication, database, storage, and edge functions
+
+## Quick Start
 
 ```javascript
-const SUPABASE_URL = "https://redzwiaseoavjbahsjgw.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_FFURYQgBt1RQh2CkPGuoag_IyF3fWXE";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  "https://redzwiaseoavjbahsjgw.supabase.co",
+  "sb_publishable_FFURYQgBt1RQh2CkPGuoag_IyF3fWXE"
+);
+
+// Sign in
+const { data: { user } } = await supabase.auth.signInWithPassword({
+  email: "user@example.com",
+  password: "password"
+});
+
+// Fetch your reviews
+const { data: reviews } = await supabase
+  .from("reviews")
+  .select("*, review_pages(*), parsed_reviews(*)")
+  .order("created_at", { ascending: false });
+
+// Parse a review using the edge function
+const { data: parsed } = await supabase.functions.invoke("parse-review", {
+  body: {
+    review_id: "review-uuid",
+    forest_plot_page: 5,
+    rob_graph_page: 7
+  }
+});
 ```
 
-## API Reference
+## Documentation
 
-- [Authentication](api/01_authentication)
-- [Reviews](api/02_reviews)
-- [Review Pages](api/03_review_pages)
-- [Storage](api/04_storage)
-
-## Database
-
-- [Database Overview](database/01_database_overview)
-- [Tables](database/02_tables)
+- [API Documentation](/api/) - Complete API reference
+- [Authentication](/api/authentication) - User authentication with Supabase Auth
+- [Database](/api/database) - Schema and table documentation
+- [Functions](/api/functions) - Edge function for parsing reviews
 
 ## Examples
 
-- [Create Review](examples/01_create_review)
-- [Upload Pages](examples/02_upload_pages)
+- [Create Review](/api/examples/create-review) - Upload a systematic review PDF
+- [Upload Pages](/api/examples/upload-pages) - Extract and store page images
+- [Parse Review](/api/examples/parse-review) - Extract data using AI

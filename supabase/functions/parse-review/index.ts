@@ -9,30 +9,7 @@ import { handleCors } from "@shared/utils/cors.ts";
 import { errorResponse, successResponse } from "@shared/utils/response.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-async function downloadPageImage(
-	supabase: SupabaseClient,
-	reviewId: string,
-	pageNumber: number,
-): Promise<string> {
-	const { data: page, error: pageError } = await supabase
-		.from("review_pages")
-		.select("image_path")
-		.eq("review_id", reviewId)
-		.eq("page_number", pageNumber)
-		.single();
-
-	if (pageError || !page) {
-		throw new Error(`Page ${pageNumber} not found`);
-	}
-
-	const { data: blob, error: downloadError } = await supabase.storage
-		.from("reviews")
-		.download(page.image_path);
-
-	if (downloadError || !blob) {
-		throw new Error(`Failed to download page ${pageNumber}`);
-	}
-
+async function blobToBase64(blob: Blob): Promise<string> {
 	const arrayBuffer = await blob.arrayBuffer();
 	const bytes = new Uint8Array(arrayBuffer);
 	let binary = "";
@@ -40,6 +17,39 @@ async function downloadPageImage(
 		binary += String.fromCharCode(bytes[i]);
 	}
 	return btoa(binary);
+}
+
+async function downloadPageSections(
+	supabase: SupabaseClient,
+	reviewId: string,
+	pageNumber: number,
+): Promise<string[]> {
+	const { data: sections, error: pageError } = await supabase
+		.from("review_pages")
+		.select("image_path, section_number")
+		.eq("review_id", reviewId)
+		.eq("page_number", pageNumber)
+		.order("section_number");
+
+	if (pageError || !sections || sections.length === 0) {
+		throw new Error(`Page ${pageNumber} not found`);
+	}
+
+	const downloadPromises = sections.map(async (section) => {
+		const { data: blob, error: downloadError } = await supabase.storage
+			.from("reviews")
+			.download(section.image_path);
+
+		if (downloadError || !blob) {
+			throw new Error(
+				`Failed to download page ${pageNumber} section ${section.section_number}`,
+			);
+		}
+
+		return blobToBase64(blob);
+	});
+
+	return Promise.all(downloadPromises);
 }
 
 Deno.serve(async (req: Request) => {
@@ -59,14 +69,14 @@ Deno.serve(async (req: Request) => {
 			return errorResponse("Missing required fields", 400);
 		}
 
-		const [forestPlotImage, robImage] = await Promise.all([
-			downloadPageImage(supabase, review_id, forest_plot_page),
-			downloadPageImage(supabase, review_id, rob_graph_page),
+		const [forestPlotImages, robImages] = await Promise.all([
+			downloadPageSections(supabase, review_id, forest_plot_page),
+			downloadPageSections(supabase, review_id, rob_graph_page),
 		]);
 
-		const forestPlotData = await parseForestPlot(forestPlotImage);
+		const forestPlotData = await parseForestPlot(forestPlotImages);
 		const studyTitles = forestPlotData.studies.map((s) => s.title);
-		const robData = await parseRiskOfBias(robImage, studyTitles);
+		const robData = await parseRiskOfBias(robImages, studyTitles);
 
 		const { data: parsedReview, error: upsertError } = await supabase
 			.from("parsed_reviews")
