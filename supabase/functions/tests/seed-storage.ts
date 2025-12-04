@@ -6,9 +6,11 @@
  */
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "http://127.0.0.1:54321";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY");
-if (!SECRET_KEY) throw new Error("SUPABASE_SECRET_KEY not set");
+if (!SUPABASE_URL || !SECRET_KEY) {
+	throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY must be set");
+}
 
 const USER_ID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
 const REVIEW_ID = "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e";

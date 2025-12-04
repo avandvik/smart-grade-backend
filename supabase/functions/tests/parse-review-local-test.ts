@@ -1,12 +1,8 @@
 /**
- * Local test for parse-review edge function
+ * Test for parse-review edge function
  *
- * Prerequisites:
- * 1. supabase start
- * 2. supabase functions serve
- * 3. A review with pages must exist in the local DB
- *
- * Run: deno test --allow-net --allow-env --env=supabase/functions/tests/.env supabase/functions/tests/parse-review-local-test.ts
+ * Local:  deno task test:local
+ * Remote: deno task test:remote
  */
 
 import {
@@ -16,6 +12,7 @@ import {
 } from "./helpers/test-setup.ts";
 
 const config = loadTestConfig();
+const isLocal = config.supabaseUrl.includes("127.0.0.1");
 
 // Page numbers - update after verifying which pages contain the forest plot and RoB graph
 const FOREST_PLOT_PAGE = 12;
@@ -23,7 +20,7 @@ const ROB_GRAPH_PAGE = 10;
 
 Deno.test(
 	{
-		name: "parse-review (local)",
+		name: `parse-review (${isLocal ? "local" : "remote"})`,
 		sanitizeResources: false,
 		sanitizeOps: false,
 	},
@@ -43,6 +40,29 @@ Deno.test(
 			console.error("Error:", error);
 			throw error;
 		}
+
+		// Verify response shape
+		if (
+			!data.id ||
+			!data.review_id ||
+			!data.forest_plot_data ||
+			!data.rob_graph_data
+		) {
+			throw new Error("Response missing expected fields");
+		}
+		console.log("Response shape OK");
+
+		// Verify persistence
+		const { data: dbRecord, error: dbError } = await supabase
+			.from("parsed_reviews")
+			.select()
+			.eq("review_id", TEST_REVIEW_ID)
+			.single();
+
+		if (dbError || !dbRecord) {
+			throw new Error("Record not persisted to database");
+		}
+		console.log("Database persistence OK");
 
 		console.log("Result:", JSON.stringify(data, null, 2));
 		await supabase.auth.signOut();

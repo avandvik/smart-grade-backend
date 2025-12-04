@@ -146,6 +146,7 @@ async function callClaude<T>(
 		model: "claude-sonnet-4-5",
 		max_tokens: 4096,
 		tools: [tool],
+		tool_choice: { type: "tool", name: tool.name },
 		messages: [
 			{
 				role: "user",
@@ -166,6 +167,7 @@ async function callClaude<T>(
 
 	const toolUse = message.content.find((block) => block.type === "tool_use");
 	if (!toolUse || toolUse.type !== "tool_use") {
+		console.error("Claude response:", JSON.stringify(message.content));
 		throw new Error("Claude did not return tool response");
 	}
 	return toolUse.input as T;

@@ -68,10 +68,26 @@ Deno.serve(async (req: Request) => {
 		const studyTitles = forestPlotData.studies.map((s) => s.title);
 		const robData = await parseRiskOfBias(robImage, studyTitles);
 
-		return successResponse({
-			forest_plot: forestPlotData,
-			risk_of_bias: robData,
-		});
+		const { data: parsedReview, error: upsertError } = await supabase
+			.from("parsed_reviews")
+			.upsert(
+				{
+					review_id,
+					forest_plot_page,
+					rob_graph_page,
+					forest_plot_data: forestPlotData,
+					rob_graph_data: robData,
+				},
+				{ onConflict: "review_id" },
+			)
+			.select()
+			.single();
+
+		if (upsertError) {
+			throw new Error(`Failed to save parsed data: ${upsertError.message}`);
+		}
+
+		return successResponse(parsedReview);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error("Error:", message);
